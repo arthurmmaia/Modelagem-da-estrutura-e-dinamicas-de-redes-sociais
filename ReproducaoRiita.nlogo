@@ -9,12 +9,11 @@ to setup
   set-default-shape turtles "circle"
   ask turtles
   [
-    set mr 1
-    set ms 1
+    set mr 0
+    set ms 0
     set t ticks
     set color red
     set size 0.5
-    ;set color one-of colors
   ]
 end
 
@@ -38,16 +37,26 @@ to primary-connection
     set color red
 
     let node1 one-of other turtles
-    if random-float 1 < 0.95 [
+    let node2 one-of other turtles
+    ifelse random-float 1 < 0.95 [
      create-connection self node1
      secondary-connection self node1
      set mr 1
-    ]
-    let node2 one-of other turtles
-    if random-float 1 < 0.05 [
+     ask node1[
+       set mr mr + 1
+      ]
+    ][
+     create-connection self node1
      create-connection self node2
      secondary-connection self node1
+      secondary-connection self node2
      set mr 2
+      ask node1[
+       set mr mr + 1
+      ]
+      ask node2[
+       set mr mr + 1
+      ]
     ]
     set size 0.5
     set color red
@@ -57,7 +66,7 @@ end
 
 ;;tem chances iguais de fazer 1, 2 ou 3 conexoes
 to secondary-connection [node1 node2]
-  let numConnections random 3 + 1
+  let numConnections random 3 ;; + 1
 
   let aux-ms [ms] of node1
 
@@ -69,6 +78,7 @@ to secondary-connection [node1 node2]
           if not in-link-neighbor? node1[
            create-connection self node1
            set aux-ms aux-ms + 1
+            set ms ms + 1
           ]
         ]
       ]
@@ -182,6 +192,7 @@ to rate-equation-degree-vertex ;; Equation 1
     set total total + z
   ]
   if any? turtles [plot log( total / count turtles) 10]
+
 end
 
 to-report rate-equation-degree-vertex-unit [node] ;; Equation 1 for only one node
@@ -202,6 +213,7 @@ to time-evolution ;; Equation 2
     ]
   ]
   if any? turtles [plot log (result / count turtles) 10]
+
 end
 
 to-report time-evolution-node [node] ;; Equation 2
@@ -223,6 +235,7 @@ to cumulative-distribution ;; Equation 3
   ]
   if any? turtles [ if result != 0 [plot log (result / count turtles) 10]]
 
+
 end
 
 to probability-density-distribution ;; Equation 4
@@ -236,6 +249,7 @@ to probability-density-distribution ;; Equation 4
 
   if any? turtles [ plot log( result / count turtles) 10]
 
+
 end
 
 to triangle-changes-over-time ;; Equation 5
@@ -246,6 +260,7 @@ to triangle-changes-over-time ;; Equation 5
   ]
 
   if any? turtles[ plot log (result / count turtles) 10]
+
 end
 
 
@@ -259,6 +274,7 @@ to time-evolution-of-triangles ;; Equation 6
   ]
 
   if any? turtles[ plot log (result / count turtles) 10]
+
 
 end
 
@@ -274,6 +290,103 @@ to clustering-coefficient ;; Equation 7
   ]
 
   if any? turtles and result > 0 [ plot log (result / count turtles) 10] ;;gambiarra pra nao tentar fazer log de num negativo
+
+
+
+end
+
+
+;;Análise / Behavior Space
+
+to-report rate-equation-degree-vertex_ ;; Equation 1
+  let total 0
+  ask turtles[
+    let x 1 / (ticks - t)
+    let y ms / (2 * (1 + ms))
+    let z x * (mr + (y * (count in-link-neighbors)))
+    set total total + z
+  ]
+
+  if any? turtles [report log( total / count turtles) 10]
+end
+
+
+to-report time-evolution_ ;; Equation 2
+  let result 0
+  ask turtles[
+    if ms > 0[
+      set result result + (((B self) * (ticks /(ticks - t))^( 1 / A self)) - C self) ;; (B(t / ti) ^ 1/A) - C
+    ]
+  ]
+
+  if any? turtles [report log (result / count turtles) 10]
+end
+
+to-report cumulative-distribution_ ;; Equation 3
+   let result 0
+  ask turtles[
+    if ms > 0[
+      set result result + (1 /  ticks) * (ticks - (ticks - t)) ;; 1/t * (t - ti)
+    ]
+  ]
+  ;;if any? turtles [ if result != 0 [plot log (result / count turtles) 10]]
+  if any? turtles [ if result != 0 [report log (result / count turtles) 10]]
+
+end
+
+to-report probability-density-distribution_ ;; Equation 4
+  let result 0
+  ask turtles[
+    if ms > 0[
+      let equation (A self * ((B self)^ A self)*((count in-link-neighbors + C self)^((-2 / ms) - 3))) ;; AB^A (k + C) ^ ((-2 / ms) - 3))
+      set result result + equation
+    ]
+  ]
+
+  ;;if any? turtles [ plot log( result / count turtles) 10]
+  if any? turtles [ report log( result / count turtles) 10]
+
+end
+
+to-report triangle-changes-over-time_ ;; Equation 5
+   let result 0
+  ask turtles[
+   let equation (rate-equation-degree-vertex-unit self + ((mr * (ms - 1))/ ticks)) ;; (Δki / Δt) + (mr (ms - 1))/t
+   set result result + equation
+  ]
+
+  ;;if any? turtles[ plot log (result / count turtles) 10]
+  if any? turtles[ report log (result / count turtles) 10]
+end
+
+
+to-report time-evolution-of-triangles_ ;; Equation 6
+  let result 0
+  ask turtles[
+    if ms > 0 [
+      let equation (time-evolution-node self) + ((mr * (ms - 1)) * ln (ticks / ticks - t)) - mr
+      set result result + equation
+    ]
+  ]
+
+  ;;if any? turtles[ plot log (result / count turtles) 10]
+  if any? turtles[ report log (result / count turtles) 10]
+
+end
+
+to-report clustering-coefficient_ ;; Equation 7
+  let result 0
+  ask turtles[
+    if ms > 0[
+      if count my-links > 1[;; maior que 1 pq se nao dá divisao por 0
+        let equation 2 * ((count my-links + (D self * ln(count my-links + C self)) - F self)/(count my-links * (count my-links - 1)))
+        set result result + equation
+      ]
+    ]
+  ]
+
+  ;;if any? turtles and result > 0 [ plot log (result / count turtles) 10] ;;gambiarra pra nao tentar fazer log de num negativo
+  if any? turtles and result > 0 [ report log (result / count turtles) 10] ;;gambiarra pra nao tentar fazer log de num negativo
 
 
 end
@@ -363,7 +476,7 @@ DesiredNetworkSize
 DesiredNetworkSize
 0
 1000
-500.0
+1000.0
 50
 1
 NIL
@@ -1082,6 +1195,26 @@ NetLogo 6.1.1
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
+<experiments>
+  <experiment name="experiment" repetitions="20" runMetricsEveryStep="false">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="1000"/>
+    <metric>rate-equation-degree-vertex_</metric>
+    <metric>time-evolution_</metric>
+    <metric>cumulative-distribution_</metric>
+    <metric>probability-density-distribution_</metric>
+    <metric>triangle-changes-over-time_</metric>
+    <metric>time-evolution-of-triangles_</metric>
+    <metric>clustering-coefficient_</metric>
+    <enumeratedValueSet variable="DesiredNetworkSize">
+      <value value="1000"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="InitialNodes">
+      <value value="1"/>
+    </enumeratedValueSet>
+  </experiment>
+</experiments>
 @#$#@#$#@
 @#$#@#$#@
 default
